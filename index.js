@@ -22,12 +22,15 @@ const DATA_DIR = new URL('./data/', import.meta.url);
 const PRODUCTS_FILE = new URL('./products.json', import.meta.url);
 const ORDERS_FILE = new URL('./data/orders.json', import.meta.url);
 const REVIEWS_FILE = new URL('./data/reviews.json', import.meta.url);
+const SETTINGS_FILE = new URL('./data/store-settings.json', import.meta.url);
 fs.mkdirSync(DATA_DIR, { recursive: true });
 const readJson = (url, fallback) => { try { return JSON.parse(fs.readFileSync(url, 'utf8')); } catch { return fallback; } };
 const writeJson = (url, value) => fs.writeFileSync(url, JSON.stringify(value, null, 2));
 let products = readJson(PRODUCTS_FILE, []).map(p => ({ emoji: '📦', image: '', ...p }));
 let orders = readJson(ORDERS_FILE, []);
 let reviews = readJson(REVIEWS_FILE, []);
+let storeSettings = readJson(SETTINGS_FILE, { logoUrl: STORE_LOGO_URL, bannerUrl: STORE_BANNER_URL });
+function saveSettings() { writeJson(SETTINGS_FILE, storeSettings); }
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 
 const commands = [
@@ -46,6 +49,13 @@ const commands = [
     .addStringOption(o => o.setName('image').setDescription('New direct image URL').setRequired(false)),
   new SlashCommandBuilder().setName('delete-product').setDescription('Delete a product')
     .addStringOption(o => o.setName('name').setDescription('Exact product name').setRequired(true)),
+  new SlashCommandBuilder().setName('set-image').setDescription('Set or replace a product image')
+    .addStringOption(o => o.setName('product').setDescription('Exact product name').setRequired(true))
+    .addStringOption(o => o.setName('image').setDescription('Direct HTTP/HTTPS image URL').setRequired(true)),
+  new SlashCommandBuilder().setName('set-logo').setDescription('Set the store logo image')
+    .addStringOption(o => o.setName('image').setDescription('Direct HTTP/HTTPS image URL').setRequired(true)),
+  new SlashCommandBuilder().setName('set-banner').setDescription('Set the store banner image')
+    .addStringOption(o => o.setName('image').setDescription('Direct HTTP/HTTPS image URL').setRequired(true)),
   new SlashCommandBuilder().setName('close-ticket').setDescription('Close this purchase ticket'),
   new SlashCommandBuilder().setName('payment-info').setDescription('Show configured payment methods in this ticket'),
   new SlashCommandBuilder().setName('mark-paid').setDescription('Staff: mark this ticket order as paid'),
@@ -83,8 +93,8 @@ function productEmbed() {
     .setDescription(`Browse our premium digital products below. Accounts and services are checked before delivery.\n\n━━━━━━━━━━━━━━━━━━━━\n${list}\n━━━━━━━━━━━━━━━━━━━━\n\nℹ️ **Warranty:** ${WARRANTY_TEXT}`)
     .setFooter({ text: `${STORE_NAME} • Buy securely through a private ticket` })
     .setTimestamp();
-  if (STORE_LOGO_URL && isHttpUrl(STORE_LOGO_URL)) embed.setThumbnail(STORE_LOGO_URL);
-  if (STORE_BANNER_URL && isHttpUrl(STORE_BANNER_URL)) embed.setImage(STORE_BANNER_URL);
+  if (storeSettings.logoUrl && isHttpUrl(storeSettings.logoUrl)) embed.setThumbnail(storeSettings.logoUrl);
+  if (storeSettings.bannerUrl && isHttpUrl(storeSettings.bannerUrl)) embed.setImage(storeSettings.bannerUrl);
   return embed;
 }
 function panelRows() {
@@ -197,6 +207,24 @@ client.on(Events.InteractionCreate, async i => {
         if (products.length === before) return i.reply({ content: 'Product not found.', ephemeral: true });
         saveProducts();
         return i.reply({ content: `🗑️ Deleted **${name}**. Run /setup-panel to post the updated panel.`, ephemeral: true });
+      }
+      if (i.commandName === 'set-image') {
+        if (!isStaff(i)) return i.reply({ content: 'Staff only.', ephemeral: true });
+        const p = findProduct(i.options.getString('product'));
+        const image = i.options.getString('image');
+        if (!p) return i.reply({ content: 'Product not found. Use its exact name.', ephemeral: true });
+        if (!isHttpUrl(image)) return i.reply({ content: 'Image must be a valid HTTP or HTTPS URL.', ephemeral: true });
+        p.image = image; saveProducts();
+        return i.reply({ content: `🖼️ Image updated for **${p.name}**. The image appears in its order details; run /setup-panel to refresh the store panel.`, ephemeral: true });
+      }
+      if (i.commandName === 'set-logo' || i.commandName === 'set-banner') {
+        if (!isStaff(i)) return i.reply({ content: 'Staff only.', ephemeral: true });
+        const image = i.options.getString('image');
+        if (!isHttpUrl(image)) return i.reply({ content: 'Image must be a valid HTTP or HTTPS URL.', ephemeral: true });
+        if (i.commandName === 'set-logo') storeSettings.logoUrl = image;
+        else storeSettings.bannerUrl = image;
+        saveSettings();
+        return i.reply({ content: `✅ Store ${i.commandName === 'set-logo' ? 'logo' : 'banner'} saved. Run /setup-panel to post a panel with the new image.`, ephemeral: true });
       }
       if (i.commandName === 'close-ticket') return closeTicket(i);
       if (i.commandName === 'payment-info') return showPayment(i);
