@@ -19,8 +19,8 @@ http.createServer((req, res) => {
 // --- CONFIGURATION & ENV ---
 const {
   DISCORD_TOKEN, CLIENT_ID, GUILD_ID, SUPPORT_ROLE_ID = '', TICKET_CATEGORY_ID = '',
-  LOG_CHANNEL_ID = '', STORE_NAME = 'FrOX Store', CURRENCY = 'NPR',
-  STORE_LOGO_URL = '', STORE_BANNER_URL = '', ESEWA_ID = '', KHALTI_ID = '',
+  LOG_CHANNEL_ID = '', STORE_NAME = 'Access Hub', CURRENCY = 'NPR',
+  STORE_LOGO_URL = '', STORE_BANNER_URL = '', ESEWA_ID = '9746370454', KHALTI_ID = '9746370454',
   FONEPAY_INFO = '', PAYMENT_NOTE = 'Pay only after staff confirms your order.',
   WARRANTY_TEXT = 'Your product comes with the warranty stated by staff. Refunds or replacements are handled only for valid product issues.'
 } = process.env;
