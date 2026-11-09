@@ -1,16 +1,14 @@
 {
   "name": "discord-digital-store-bot",
   "version": "2.0.0",
-  "private": true,
+  "description": "Discord digital store bot with ticketing, payments, reviews, and transcripts",
+  "main": "index.js",
   "type": "module",
   "scripts": {
     "start": "node index.js"
   },
-  "engines": {
-    "node": ">=20.0.0"
-  },
   "dependencies": {
-    "discord.js": "^14.24.1",
-    "dotenv": "^16.4.7"
+    "discord.js": "^14.14.1",
+    "dotenv": "^16.4.5"
   }
 }
