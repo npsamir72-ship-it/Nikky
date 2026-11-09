@@ -1,0 +1,87 @@
+[
+  {
+    "name": "Spotify Premium",
+    "price": "199 NPR",
+    "stock": "Available"
+  },
+  {
+    "name": "Netflix",
+    "price": "349 NPR",
+    "stock": "Available"
+  },
+  {
+    "name": "Prime Video",
+    "price": "85 NPR",
+    "stock": "Available"
+  },
+  {
+    "name": "CapCut Pro",
+    "price": "649 NPR",
+    "stock": "Available"
+  },
+  {
+    "name": "YouTube Premium",
+    "price": "50 NPR",
+    "stock": "Available"
+  },
+  {
+    "name": "Discord Nitro / Boost",
+    "price": "Ask in ticket",
+    "stock": "Ask in ticket"
+  },
+  {
+    "name": "Discord Decoration",
+    "price": "399 NPR",
+    "stock": "Available"
+  },
+  {
+    "name": "Canva",
+    "price": "80 NPR",
+    "stock": "Available"
+  },
+  {
+    "name": "Minecraft",
+    "price": "1549 NPR",
+    "stock": "Available"
+  },
+  {
+    "name": "Roblox+",
+    "price": "Ask in ticket",
+    "stock": "Ask in ticket"
+  },
+  {
+    "name": "Robux",
+    "price": "Ask in ticket",
+    "stock": "Ask in ticket"
+  },
+  {
+    "name": "ChatGPT",
+    "price": "Ask in ticket",
+    "stock": "Ask in ticket"
+  },
+  {
+    "name": "Gemini",
+    "price": "399 NPR",
+    "stock": "Available"
+  },
+  {
+    "name": "Game Topup",
+    "price": "Ask in ticket",
+    "stock": "Ticket only"
+  },
+  {
+    "name": "Crunchyroll",
+    "price": "99 NPR",
+    "stock": "Available"
+  },
+  {
+    "name": "Bot Developing",
+    "price": "Ask in ticket",
+    "stock": "Ticket only"
+  },
+  {
+    "name": "Sony LIV",
+    "price": "699 NPR",
+    "stock": "Available"
+  }
+]

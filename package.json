@@ -1,0 +1,16 @@
+{
+  "name": "discord-digital-store-bot",
+  "version": "2.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "dependencies": {
+    "discord.js": "^14.24.1",
+    "dotenv": "^16.4.7"
+  }
+}
