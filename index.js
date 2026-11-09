@@ -16,12 +16,16 @@ http.createServer((req, res) => {
   console.log(`HTTP keep-alive listening on 0.0.0.0:${PORT}`);
 });
 
+// --- BRAND THEME COLOR ---
+const BRAND_COLOR = 0x393a41; // Access Hub dark slate theme (#393a41)
+
 // --- CONFIGURATION & ENV ---
 const {
   DISCORD_TOKEN, CLIENT_ID, GUILD_ID, SUPPORT_ROLE_ID = '', TICKET_CATEGORY_ID = '',
   LOG_CHANNEL_ID = '', STORE_NAME = 'Access Hub', CURRENCY = 'NPR',
-  STORE_LOGO_URL = '', STORE_BANNER_URL = '', ESEWA_ID = '9746370454', KHALTI_ID = '9746370454',
-  FONEPAY_INFO = '', PAYMENT_NOTE = 'Pay only after staff confirms your order.',
+  STORE_LOGO_URL = '', STORE_BANNER_URL = '', QR_IMAGE_URL = '',
+  ESEWA_ID = '', KHALTI_ID = '', FONEPAY_INFO = '',
+  PAYMENT_NOTE = 'Pay only after staff confirms your order.',
   WARRANTY_TEXT = 'Your product comes with the warranty stated by staff. Refunds or replacements are handled only for valid product issues.'
 } = process.env;
 
@@ -51,7 +55,16 @@ const writeJson = (url, value) => {
 let products = readJson(PRODUCTS_FILE, []).map(p => ({ emoji: '📦', image: '', ...p }));
 let orders = readJson(ORDERS_FILE, []);
 let reviews = readJson(REVIEWS_FILE, []);
-let storeSettings = readJson(SETTINGS_FILE, { logoUrl: STORE_LOGO_URL, bannerUrl: STORE_BANNER_URL });
+let storeSettings = readJson(SETTINGS_FILE, {
+  logoUrl: STORE_LOGO_URL,
+  bannerUrl: STORE_BANNER_URL,
+  qrUrl: QR_IMAGE_URL
+});
+
+// Sync fallback environment variables if not overridden
+if (!storeSettings.logoUrl && STORE_LOGO_URL) storeSettings.logoUrl = STORE_LOGO_URL;
+if (!storeSettings.bannerUrl && STORE_BANNER_URL) storeSettings.bannerUrl = STORE_BANNER_URL;
+if (!storeSettings.qrUrl && QR_IMAGE_URL) storeSettings.qrUrl = QR_IMAGE_URL;
 
 const saveProducts = () => writeJson(PRODUCTS_FILE, products);
 const saveOrders = () => writeJson(ORDERS_FILE, orders);
@@ -99,9 +112,13 @@ const commands = [
   new SlashCommandBuilder().setName('set-banner').setDescription('Set store banner image')
     .addStringOption(o => o.setName('image').setDescription('Direct image URL').setRequired(true))
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
+  new SlashCommandBuilder().setName('set-qr').setDescription('Set or update the payment QR code image')
+    .addAttachmentOption(o => o.setName('file').setDescription('Upload QR code image directly').setRequired(false))
+    .addStringOption(o => o.setName('image').setDescription('Or paste a direct HTTPS image URL').setRequired(false))
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
   new SlashCommandBuilder().setName('close-ticket').setDescription('Close and archive this purchase ticket')
     .addStringOption(o => o.setName('reason').setDescription('Reason for closing').setRequired(false)),
-  new SlashCommandBuilder().setName('payment-info').setDescription('View configured payment channels'),
+  new SlashCommandBuilder().setName('payment-info').setDescription('View configured payment channels and QR code'),
   new SlashCommandBuilder().setName('mark-paid').setDescription('Staff: Confirm payment received')
     .addStringOption(o => o.setName('order_id').setDescription('Order ID (optional if run inside ticket)').setRequired(false)),
   new SlashCommandBuilder().setName('deliver').setDescription('Staff: Deliver product contents to the customer')
@@ -164,7 +181,7 @@ function productEmbed() {
     : 'No products added yet. Staff can add items using `/add-product`.';
 
   const embed = new EmbedBuilder()
-    .setColor(0x5865F2)
+    .setColor(BRAND_COLOR)
     .setTitle(`🛒 Welcome to ${STORE_NAME}`)
     .setDescription(`Browse available products and open a ticket to place an order.\n\n━━━━━━━━━━━━━━━━━━━━\n${list}\n━━━━━━━━━━━━━━━━━━━━\n\n🛡️ **Warranty Policy:**\n${WARRANTY_TEXT}`)
     .setFooter({ text: `${STORE_NAME} • Secure Purchases & Instant Service` })
@@ -203,7 +220,7 @@ function productMenu() {
 function ticketControls() {
   return [
     new ActionRowBuilder().addComponents(
-      new ButtonBuilder().setCustomId('payment_info').setLabel('Payment Methods').setEmoji('💳').setStyle(ButtonStyle.Primary),
+      new ButtonBuilder().setCustomId('payment_info').setLabel('Payment & QR').setEmoji('💳').setStyle(ButtonStyle.Primary),
       new ButtonBuilder().setCustomId('paid_submit').setLabel('I Have Paid').setEmoji('✅').setStyle(ButtonStyle.Success),
       new ButtonBuilder().setCustomId('close_ticket').setLabel('Close Ticket').setEmoji('🔒').setStyle(ButtonStyle.Danger)
     )
@@ -248,7 +265,7 @@ async function createTicket(i) {
   });
 
   const introEmbed = new EmbedBuilder()
-    .setColor(0x5865F2)
+    .setColor(BRAND_COLOR)
     .setTitle(`🎫 ${STORE_NAME} Ticket Support`)
     .setDescription(`Welcome ${i.user}! Please select the product you want to buy from the dropdown menu below.\n\nOur staff team will verify stock and guide you through payment.`)
     .setFooter({ text: 'Do not send sensitive credentials or OTP codes.' });
@@ -267,12 +284,25 @@ async function showPayment(i) {
   if (ESEWA_ID) lines.push(`📱 **eSewa ID:** \`${ESEWA_ID}\``);
   if (KHALTI_ID) lines.push(`🟣 **Khalti ID:** \`${KHALTI_ID}\``);
   if (FONEPAY_INFO) lines.push(`🏦 **Fonepay:** \`${FONEPAY_INFO}\``);
-  if (!lines.length) lines.push('Payment methods are not configured yet. Please ask staff in this channel.');
+
+  const activeQr = storeSettings.qrUrl || QR_IMAGE_URL;
+  if (!lines.length && !activeQr) {
+    lines.push('Payment methods are not configured yet. Please ask staff in this channel.');
+  }
 
   const embed = new EmbedBuilder()
-    .setColor(0x57F287)
-    .setTitle('💳 Store Payment Methods')
-    .setDescription(`${lines.join('\n')}\n\n⚠️ **Notice:** ${PAYMENT_NOTE}\n\n*Click **I Have Paid** below after your transaction to submit your payment reference.*`);
+    .setColor(BRAND_COLOR)
+    .setTitle(`💳 ${STORE_NAME} — Payment Methods & QR`)
+    .setDescription(`${lines.join('\n')}\n\n⚠️ **Notice:** ${PAYMENT_NOTE}\n\n*Scan the QR code below or use the payment IDs above, then click **I Have Paid** to submit your transaction reference.*`)
+    .setFooter({ text: `${STORE_NAME} • Official Payment Gateway` });
+
+  if (activeQr && isHttpUrl(activeQr)) {
+    embed.setImage(activeQr);
+  }
+
+  if (storeSettings.logoUrl && isHttpUrl(storeSettings.logoUrl)) {
+    embed.setThumbnail(storeSettings.logoUrl);
+  }
 
   return i.reply({ embeds: [embed], ephemeral: true });
 }
@@ -455,6 +485,21 @@ client.on(Events.InteractionCreate, async i => {
         return i.reply({ content: `✅ Updated store ${i.commandName === 'set-logo' ? 'logo' : 'banner'}.`, ephemeral: true });
       }
 
+      if (i.commandName === 'set-qr') {
+        if (!isStaff(i)) return i.reply({ content: 'Staff only.', ephemeral: true });
+        const attachment = i.options.getAttachment('file');
+        const urlInput = i.options.getString('image');
+        const finalUrl = attachment ? attachment.url : urlInput;
+
+        if (!finalUrl || !isHttpUrl(finalUrl)) {
+          return i.reply({ content: 'Please upload a valid QR image file or provide a direct HTTP/HTTPS URL.', ephemeral: true });
+        }
+
+        storeSettings.qrUrl = finalUrl;
+        saveSettings();
+        return i.reply({ content: '✅ Payment QR code updated! Customers will now see it when clicking **Payment & QR**.', ephemeral: true });
+      }
+
       if (i.commandName === 'close-ticket') {
         return closeTicket(i, i.options.getString('reason') || 'Completed');
       }
@@ -539,7 +584,7 @@ client.on(Events.InteractionCreate, async i => {
         if (!o) return i.reply({ content: 'No order found matching your criteria.', ephemeral: true });
 
         const embed = new EmbedBuilder()
-          .setColor(0x5865F2)
+          .setColor(BRAND_COLOR)
           .setTitle(`Status for Order ${o.id}`)
           .addFields(
             { name: 'Customer', value: `<@${o.userId}>`, inline: true },
@@ -559,7 +604,7 @@ client.on(Events.InteractionCreate, async i => {
 
         const lines = open.map(o => `• **${o.id}** | <@${o.userId}> | **${o.product}** | Status: \`${o.status}\``);
         const embed = new EmbedBuilder()
-          .setColor(0x5865F2)
+          .setColor(BRAND_COLOR)
           .setTitle('📋 Active Store Orders')
           .setDescription(lines.join('\n'));
         return i.reply({ embeds: [embed], ephemeral: true });
@@ -631,7 +676,7 @@ client.on(Events.InteractionCreate, async i => {
         const stockList = products.map(p => `${p.emoji || '📦'} **${p.name}** — ${p.stock || 'In Stock'}`).join('\n') || 'No products listed.';
         return i.reply({
           embeds: [
-            new EmbedBuilder().setColor(0x5865F2).setTitle('📦 Current Product Stock').setDescription(stockList)
+            new EmbedBuilder().setColor(BRAND_COLOR).setTitle('📦 Current Product Stock').setDescription(stockList)
           ],
           ephemeral: true
         });
@@ -764,7 +809,7 @@ client.on(Events.InteractionCreate, async i => {
       await log(i.guild, `Order \`${order.id}\` initiated: ${p.name} (${order.price}) for <@${ownerId}>`);
 
       const embed = new EmbedBuilder()
-        .setColor(0x5865F2)
+        .setColor(BRAND_COLOR)
         .setTitle('🧾 Order Details')
         .addFields(
           { name: 'Order ID', value: `\`${order.id}\``, inline: true },
@@ -773,7 +818,7 @@ client.on(Events.InteractionCreate, async i => {
           { name: 'Stock Status', value: p.stock || 'Ask staff', inline: true },
           { name: 'Status', value: '🟡 Awaiting Confirmation / Payment', inline: true }
         )
-        .setDescription('Please click **Payment Methods** below to make your payment, then click **I Have Paid** to submit your transaction ID.')
+        .setDescription('Please click **Payment & QR** below to scan the QR code or view payment IDs, then click **I Have Paid** to submit your transaction ID.')
         .setTimestamp();
 
       if (p.image && isHttpUrl(p.image)) embed.setThumbnail(p.image);
